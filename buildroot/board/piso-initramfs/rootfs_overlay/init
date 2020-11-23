@@ -1,0 +1,24 @@
+#!/bin/busybox sh
+
+/bin/mount -t devtmpfs devtmpfs /dev
+
+# Use a tmpfs to prevent 'switch_root' from trying to clean up the overlayfs dirs
+mount -t tmpfs tmpfs /tmp
+
+mkdir /tmp/work
+mkdir /tmp/upper
+mkdir /tmp/merged
+
+while [ ! -b /dev/mmcblk0p1 ]; do
+   sleep 0.01
+done
+
+mount -t vfat /dev/mmcblk0p1 /boot
+mount -t squashfs -o loop,ro /boot/rootfs.squashfs /mnt
+
+mount -t overlay overlay -o lowerdir=/mnt,upperdir=/tmp/upper,workdir=/tmp/work /tmp/merged
+
+echo "switching real root"
+
+# Dont' use 'switch_root' because it will try to clean up /tmp and break the overlay
+exec switch_root /tmp/merged /linuxrc
